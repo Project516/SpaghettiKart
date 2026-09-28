@@ -86,8 +86,45 @@ jobs:
       with:
         path: spaghetti-web
 
-  deploy-web:
+  test-web:
     needs: build-web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+    - name: Download the site
+      uses: actions/download-artifact@v8
+      with:
+        name: spaghetti-web
+        path: site
+    - name: Install a browser
+      run: |
+        npm install --no-save playwright@1.56.1
+        npx playwright install --with-deps chromium
+    - name: Serve the site
+      run: |
+        python3 script/serve-web.py 8123 "$PWD/site" &
+        for i in $(seq 1 30); do curl -sf http://127.0.0.1:8123/index.html > /dev/null && break; sleep 1; done
+    - name: Load it in a browser
+      env:
+        SITE_URL: http://127.0.0.1:8123/index.html
+        ROM_PATH: ${{ runner.temp }}/mk64.z64
+        SHOT_DIR: ${{ runner.temp }}/shots
+        ROM_URL: ${{ secrets.MK64_ROM_URL }}
+      run: |
+        mkdir -p "$SHOT_DIR"
+        node script/web-smoke-test.js
+    - name: Upload the screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: spaghetti-web-shots
+        path: ${{ runner.temp }}/shots
+        retention-days: 7
+
+  deploy-web:
+    needs: [build-web, test-web]
     if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     permissions:
