@@ -6,8 +6,6 @@ const fs = require('fs');
 const SITE = process.env.SITE_URL;
 const ROM = process.env.ROM_PATH;
 const OUT = process.env.SHOT_DIR;
-const ROM_URL = process.env.ROM_URL;
-
 async function main() {
   const browser = await chromium.launch({
     args: [
@@ -43,12 +41,6 @@ async function main() {
   // The first run extracts the ROM in the tab, which asks for a file in a prompt
   // the game draws itself.
   const input = page.waitForSelector('input[type=file]', { state: 'attached', timeout: 180000 });
-  if (process.env.ROM_URL) {
-    say(`fetching the ROM from ${ROM_URL}`);
-    const res = await fetch(ROM_URL);
-    if (!res.ok) throw new Error(`ROM download failed: ${res.status}`);
-    fs.writeFileSync(ROM, Buffer.from(await res.arrayBuffer()));
-  }
   await input;
   await page.setInputFiles('input[type=file]', ROM);
   say('ROM handed to the page');
