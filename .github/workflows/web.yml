@@ -93,6 +93,7 @@ jobs:
     permissions:
       contents: read
     steps:
+    - uses: actions/checkout@v6
     - name: Download the site
       uses: actions/download-artifact@v8
       with:
