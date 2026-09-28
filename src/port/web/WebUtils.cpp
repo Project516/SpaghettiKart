@@ -105,7 +105,7 @@ EM_ASYNC_JS(int, js_pick_into, (const char* ctitle, const char* caccept, int max
 // stays off when loading failed and the directory may be missing saved files.
 static bool sWriteBackEnabled = false;
 
-extern "C" void WebCache_Mount(const char* path) {
+void WebCache_Mount(const char* path) {
     static bool sMounted = false;
     if (sMounted) {
         return;
@@ -114,7 +114,7 @@ extern "C" void WebCache_Mount(const char* path) {
     js_idbfs_mount(path);
 }
 
-extern "C" void WebCache_Load(void) {
+void WebCache_Load(void) {
     if (js_idbfs_sync(1) == 0) {
         sWriteBackEnabled = true;
     } else {
@@ -123,7 +123,7 @@ extern "C" void WebCache_Load(void) {
     }
 }
 
-extern "C" void WebCache_Save(void) {
+void WebCache_Save(void) {
     static int sFailedWrites = 0;
     if (!sWriteBackEnabled) {
         return;
@@ -136,19 +136,19 @@ extern "C" void WebCache_Save(void) {
     }
 }
 
-extern "C" void WebCache_SaveNoWait(void) {
+void WebCache_SaveNoWait(void) {
     if (sWriteBackEnabled) {
         js_idbfs_sync_nowait();
     }
 }
 
-extern "C" int WebConfirm(const char* title, const char* text) {
+int WebConfirm(const char* title, const char* text) {
     // clang-format off
     return EM_ASM_INT({ return confirm(UTF8ToString($0) + "\n\n" + UTF8ToString($1)) ? 1 : 0; }, title, text);
     // clang-format on
 }
 
-extern "C" int WebFilePicker_PickInto(const char* title, const char* accept, int maxBytes, const char* destPath) {
+int WebFilePicker_PickInto(const char* title, const char* accept, int maxBytes, const char* destPath) {
     return js_pick_into(title, accept, maxBytes, destPath);
 }
 
