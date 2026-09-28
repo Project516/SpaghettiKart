@@ -167,6 +167,11 @@ struct RailroadCrossing {
     /* 0x04 */ s16 someTimer;
     /* 0x06 */ s16 crossingId; // unused now
     /* 0x08 */ void* crossingTrigger; // Crossing Trigger Class
+#if UINTPTR_MAX < UINT64_MAX
+    // On a 32-bit target crossingTrigger is half the width it is everywhere else,
+    // which would shift every member below it out of the layout Actor uses.
+    uint32_t crossingTriggerPad;
+#endif
     /* 0x10 */ Vec3s rot;
     /* 0x16 */ s16 unk_16;
     /* 0x18 */ Vec3f pos;
@@ -175,7 +180,6 @@ struct RailroadCrossing {
                const char* model;
 }; // size = 0x70
 
-// crossingTrigger might ruin struct size when compiled on 32 bit
 static_assert(sizeof(struct RailroadCrossing) == sizeof(struct Actor), "RailroadCrossing struct size does not match base struct size");
 
 struct FallingRock {
