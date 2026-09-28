@@ -716,9 +716,7 @@ if(EMSCRIPTEN)
 endif()
 
 if(EMSCRIPTEN)
-  # The game reads config.yml, yamls/ and meta/ off the in-memory filesystem when it
-  # extracts the ROM, and the fonts out of the shipped o2r, so they all get preloaded.
-  set(WEB_PRELOAD_DIR ${CMAKE_BINARY_DIR}/web-preload)
+  # WEB_PRELOAD_DIR is filled by the POST_BUILD step below and read by the link options above.
   add_custom_command(
    TARGET ${PROJECT_NAME} POST_BUILD
    COMMENT "Staging the web shell and preloaded game files..."

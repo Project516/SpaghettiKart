@@ -16,6 +16,9 @@ set(USE_OPENGLES ON CACHE BOOL "" FORCE)
 add_compile_definitions(USE_OPENGLES=1)
 
 set(WEB_PORT_FLAGS -sUSE_SDL=2 -sUSE_ZLIB=1 -sUSE_LIBPNG=1)
+
+# The link options preload this directory, and a POST_BUILD step fills it.
+set(WEB_PRELOAD_DIR ${CMAKE_BINARY_DIR}/web-preload)
 add_compile_options(-pthread -fexceptions ${WEB_PORT_FLAGS})
 add_link_options(-pthread -fexceptions ${WEB_PORT_FLAGS})
 
