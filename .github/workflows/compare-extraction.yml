@@ -1,0 +1,45 @@
+name: Compare extraction
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: Install dependencies
+      run: sudo apt-get install -y gcc g++ git cmake ninja-build
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2.24
+      with:
+        key: ${{ runner.os }}-torch-ccache-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-torch-ccache-
+    - name: Build the standalone torch
+      run: |
+        make -C torch type=release -j4
+    - name: Fetch the ROM
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release download rom --repo Project516/mk64-test-rom --pattern '*.z64' --dir "$RUNNER_TEMP"
+    - name: Extract with the standalone tool
+      run: |
+        "$RUNNER_TEMP"/mk64.z64 --help > /dev/null 2>&1 || true
+        torch/cmake-build-release/torch o2r "$RUNNER_TEMP"/mk64.z64 --additional-files meta/mods.toml > standalone.log 2>&1
+        echo "exit=$?"
+        wc -l standalone.log
+        echo "--- failures:"
+        grep -c "Failed to process" standalone.log || echo 0
+        grep "Failed to process" standalone.log | head -25
+        ls -la *.o2r 2>/dev/null || true
+    - name: Upload the log
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: standalone-extract-log
+        path: standalone.log
