@@ -55,6 +55,7 @@ extern "C" {
     extern Gfx mario_Plane_001_mesh[];
     extern TrackPathPoint test_track_path[];
     extern TrackSections test_track_addr[];
+    void init_test_track_addr(void);
 }
 
 TestTrack::TestTrack() {
@@ -140,6 +141,7 @@ void TestTrack::Load() {
 
     generate_collision_mesh_with_defaults(mario_Plane_001_mesh);
 
+    init_test_track_addr();
     parse_track_displaylists((TrackSections*)test_track_addr);
     func_80295C6C();
     Props.WaterLevel = gTrackMinY - 10.0f;

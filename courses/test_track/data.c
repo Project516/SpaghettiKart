@@ -68,7 +68,11 @@ TrackPathPoint test_track_path[] = {
     { -32768, -32768, -32768, 0 } // Terminator
 };
 
-TrackSections test_track_addr[] = {
-    { mario_Plane_001_mesh, 255, 255, 0x0000 },
-    { 0x00000000, 0, 0, 0x00000 },
-};
+// The first entry holds a display list address in a 64-bit field. A static initializer cannot
+// widen a pointer to 64 bits where a pointer is 32 bits, so the table is filled in at load time.
+TrackSections test_track_addr[2];
+
+void init_test_track_addr(void) {
+    test_track_addr[0] = (TrackSections){ .crc = (uintptr_t) mario_Plane_001_mesh, .surfaceType = 255, .sectionId = 255, .clip = 0x0000 };
+    test_track_addr[1] = (TrackSections){ 0 };
+}
