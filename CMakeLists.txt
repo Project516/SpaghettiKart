@@ -710,7 +710,6 @@ if(EMSCRIPTEN)
     # config.yml, yamls/ and meta/ drive the in-tab ROM extraction, and the port's own
     # o2r holds the fonts. Saves and the generated mk64.o2r live in IndexedDB under /storage.
     "--preload-file=${WEB_PRELOAD_DIR}@/"
-    "--shell-file=${CMAKE_SOURCE_DIR}/src/port/web/shell.html"
     -lidbfs.js
   )
 endif()
@@ -732,6 +731,9 @@ if(EMSCRIPTEN)
   add_custom_command(
    TARGET ${PROJECT_NAME} POST_BUILD
    COMMENT "Staging the web shell..."
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+           "${CMAKE_SOURCE_DIR}/src/port/web/shell.html"
+           "$<TARGET_FILE_DIR:Spaghettify>/spaghettikart.html"
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
            "${CMAKE_SOURCE_DIR}/src/port/web/coi-serviceworker.js"
            "$<TARGET_FILE_DIR:Spaghettify>/coi-serviceworker.js"

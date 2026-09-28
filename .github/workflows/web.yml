@@ -69,10 +69,12 @@ jobs:
     - name: Stage site
       run: |
         mkdir -p spaghetti-web
-        # Emscripten names the generated HTML after the shell file, not after the target.
-        cp build-web/*.html spaghetti-web/index.html
+        # The shell carries the loading screen and the audio gate, and hands the module
+        # a canvas, so only the script tag is filled in here.
+        sed 's|{{{ SCRIPT }}}|<script async src="Spaghettify.js"></script>|' build-web/spaghettikart.html > spaghetti-web/index.html
         cp build-web/Spaghettify.js build-web/Spaghettify.wasm build-web/Spaghettify.data spaghetti-web/
         cp build-web/coi-serviceworker.js build-web/CNAME spaghetti-web/
+        ls -la spaghetti-web
     - name: Upload build
       uses: actions/upload-artifact@v7
       with:
