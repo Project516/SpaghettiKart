@@ -716,16 +716,22 @@ if(EMSCRIPTEN)
 endif()
 
 if(EMSCRIPTEN)
-  # WEB_PRELOAD_DIR is filled by the POST_BUILD step below and read by the link options above.
+  # The link options preload this directory, so it has to be filled before the link runs.
+  # The fonts live in the o2r, and config.yml plus yamls/ and meta/ drive the in-tab ROM
+  # extraction.
   add_custom_command(
-   TARGET ${PROJECT_NAME} POST_BUILD
-   COMMENT "Staging the web shell and preloaded game files..."
+   TARGET ${PROJECT_NAME} PRE_LINK
+   COMMENT "Staging the preloaded game files..."
    COMMAND ${CMAKE_COMMAND} -E make_directory ${WEB_PRELOAD_DIR}
    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/yamls/" "${WEB_PRELOAD_DIR}/yamls/"
    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/meta/" "${WEB_PRELOAD_DIR}/meta/"
    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/config.yml" "${WEB_PRELOAD_DIR}/config.yml"
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
            "${CMAKE_BINARY_DIR}/spaghetti.o2r" "${WEB_PRELOAD_DIR}/spaghetti.o2r"
+  )
+  add_custom_command(
+   TARGET ${PROJECT_NAME} POST_BUILD
+   COMMENT "Staging the web shell..."
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
            "${CMAKE_SOURCE_DIR}/src/port/web/coi-serviceworker.js"
            "$<TARGET_FILE_DIR:Spaghettify>/coi-serviceworker.js"
