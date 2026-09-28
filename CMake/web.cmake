@@ -87,6 +87,10 @@ FetchContent_Declare(Vorbis
 
 FetchContent_MakeAvailable(tinyxml2 nlohmann_json spdlog libzip Ogg Vorbis)
 
+# libultraship links libzip privately, so its headers are not on the game's include path
+# the way a system libzip's would be. zipconf.h is generated into the build tree.
+include_directories("${libzip_SOURCE_DIR}/lib" "${libzip_BINARY_DIR}")
+
 # libultraship's crash handler calls backtrace() without including <execinfo.h>,
 # which Emscripten has no equivalent of.
 include_directories("${CMAKE_SOURCE_DIR}/CMake/web-include")
