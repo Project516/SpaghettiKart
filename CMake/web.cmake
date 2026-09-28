@@ -1,6 +1,8 @@
-# Browser build, configured with emcmake. SDL2, zlib, libpng, ogg and vorbis
-# come from emscripten ports; everything else is fetched and built from source
-# with the same -pthread flags so every object can share wasm memory.
+# Browser build, configured with emcmake. SDL2, zlib and libpng come from
+# emscripten ports; everything else is fetched and built from source with the
+# same -pthread flags so every object can share wasm memory. Ogg and vorbis are
+# built from source because emscripten only ships them without the -mt variants
+# that -pthread asks for.
 
 include(FetchContent)
 
@@ -13,13 +15,13 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(USE_OPENGLES ON CACHE BOOL "" FORCE)
 add_compile_definitions(USE_OPENGLES=1)
 
-set(WEB_PORT_FLAGS -sUSE_SDL=2 -sUSE_ZLIB=1 -sUSE_LIBPNG=1 -sUSE_OGG=1 -sUSE_VORBIS=1)
+set(WEB_PORT_FLAGS -sUSE_SDL=2 -sUSE_ZLIB=1 -sUSE_LIBPNG=1)
 add_compile_options(-pthread -fexceptions ${WEB_PORT_FLAGS})
 add_link_options(-pthread -fexceptions ${WEB_PORT_FLAGS})
 
 # The find modules below need the port libraries on disk at configure time.
 execute_process(
-    COMMAND ${EMSCRIPTEN_ROOT_PATH}/embuilder build zlib libpng-mt sdl2-mt libogg-mt libvorbis-mt
+    COMMAND ${EMSCRIPTEN_ROOT_PATH}/embuilder build zlib libpng-mt sdl2-mt
     RESULT_VARIABLE WEB_EMBUILDER_RESULT
 )
 if(NOT WEB_EMBUILDER_RESULT EQUAL 0)
@@ -34,11 +36,6 @@ set(ZLIB_INCLUDE_DIR "${WEB_SYSROOT}/include" CACHE PATH "" FORCE)
 set(ZLIB_LIBRARY "${WEB_SYSROOT}/lib/wasm32-emscripten/libz.a" CACHE FILEPATH "" FORCE)
 set(PNG_PNG_INCLUDE_DIR "${WEB_SYSROOT}/include" CACHE PATH "" FORCE)
 set(PNG_LIBRARY "${WEB_SYSROOT}/lib/wasm32-emscripten/libpng-mt.a" CACHE FILEPATH "" FORCE)
-set(OGG_INCLUDE_DIR "${WEB_SYSROOT}/include" CACHE PATH "" FORCE)
-set(OGG_LIBRARY "${WEB_SYSROOT}/lib/wasm32-emscripten/libogg.a" CACHE FILEPATH "" FORCE)
-set(VORBIS_INCLUDE_DIR "${WEB_SYSROOT}/include" CACHE PATH "" FORCE)
-set(VORBIS_LIBRARY "${WEB_SYSROOT}/lib/wasm32-emscripten/libvorbis.a" CACHE FILEPATH "" FORCE)
-set(VORBISFILE_LIBRARY "${WEB_SYSROOT}/lib/wasm32-emscripten/libvorbisfile.a" CACHE FILEPATH "" FORCE)
 
 add_library(SDL2::SDL2 INTERFACE IMPORTED GLOBAL)
 set_target_properties(SDL2::SDL2 PROPERTIES
@@ -95,9 +92,7 @@ FetchContent_MakeAvailable(tinyxml2 nlohmann_json spdlog libzip Ogg Vorbis)
 include_directories("${CMAKE_SOURCE_DIR}/CMake/web-include")
 
 # The names Spaghetti Kart links, which the platform Find modules create elsewhere.
-add_library(Vorbis::vorbis ALIAS vorbis)
-add_library(Vorbis::vorbisenc ALIAS vorbislib)
-add_library(Vorbis::vorbisfile ALIAS vorbisfile)
 add_library(Ogg::ogg ALIAS ogg)
-set(OGG_FOUND TRUE)
-set(VORBIS_FOUND TRUE)
+add_library(Vorbis::vorbis ALIAS vorbis)
+add_library(Vorbis::vorbisenc ALIAS vorbisenc)
+add_library(Vorbis::vorbisfile ALIAS vorbisfile)

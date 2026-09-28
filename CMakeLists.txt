@@ -492,9 +492,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         ${DEVKITPRO}/portlibs/wiiu/include/
     )
 elseif(EMSCRIPTEN)
-  # CMake/web.cmake already pointed the find modules at the emscripten ports.
-  find_package(Ogg REQUIRED)
-  find_package(Vorbis REQUIRED)
+  # CMake/web.cmake built ogg and vorbis from source and gave them the names below.
   set(ADDITIONAL_LIBRARY_DEPENDENCIES
         "Ogg::ogg"
         "Vorbis::vorbis"
