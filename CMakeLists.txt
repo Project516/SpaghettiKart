@@ -704,6 +704,7 @@ if(EMSCRIPTEN)
     # Asyncify has to instrument. Capping it keeps that bounded.
     -sBINARYEN_EXTRA_PASSES=-ocimfs=1000
     -sASSERTIONS=1
+    -g2
     -sFORCE_FILESYSTEM=1
     -sEXPORTED_FUNCTIONS=_main,_malloc,_free
     -sEXPORTED_RUNTIME_METHODS=FS,ccall,cwrap,UTF8ToString,stringToUTF8
