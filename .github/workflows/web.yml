@@ -1,0 +1,81 @@
+name: Web
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-web:
+    needs: generate-port-o2r
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: Configure ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        key: ${{ runner.os }}-web-ccache-${{ github.ref }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-web-ccache-${{ github.ref }}
+          ${{ runner.os }}-web-ccache
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: 4.0.12
+        actions-cache-folder: emsdk-cache
+    - name: Download spaghetti.o2r
+      uses: actions/download-artifact@v7
+      with:
+        name: spaghetti.o2r
+        path: build-web
+    - name: Build
+      run: |
+        emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake --build build-web --parallel 4
+    - name: Stage site
+      run: |
+        mkdir -p spaghetti-web
+        cp build-web/Spaghettify.html spaghetti-web/index.html
+        cp build-web/Spaghettify.js build-web/Spaghettify.wasm build-web/Spaghettify.data spaghetti-web/
+        cp build-web/coi-serviceworker.js spaghetti-web/
+    - name: Upload build
+      uses: actions/upload-artifact@v7
+      with:
+        name: spaghetti-web
+        path: spaghetti-web
+    - name: Upload Pages artifact
+      if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: spaghetti-web
+
+  deploy-web:
+    needs: build-web
+    if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

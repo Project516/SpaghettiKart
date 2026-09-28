@@ -41,6 +41,19 @@
 #include <port/switch/SwitchImpl.h>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include "port/web/WebUtils.h"
+
+// clang-format off
+EM_JS(void, js_set_status, (const char* ctext), {
+    if (typeof Module !== 'undefined' && Module.setStatus) {
+        Module.setStatus(UTF8ToString(ctext));
+    }
+});
+// clang-format on
+#endif
+
 extern "C" {
 bool prevAltAssets = false;
 float gInterpolationStep = 0.0f;
@@ -283,6 +296,13 @@ bool GameEngine::GenAssetFile() {
     ShowMessage(("Found " + game.value()).c_str(),
                 "The extraction process will now begin.\n\nThis may take a few minutes.", SDL_MESSAGEBOX_INFORMATION);
 
+#ifdef __EMSCRIPTEN__
+    // The browser only repaints when this stack unwinds, and the message boxes the other
+    // platforms get are no-ops here, so drive the shell's status line by hand.
+    emscripten_sleep(0);
+    js_set_status(("Extracting " + game.value() + "...").c_str());
+#endif
+
     return extractor->GenerateOTR();
 }
 
@@ -310,6 +330,9 @@ extern "C" uint32_t GameEngine_GetInterpolationFrameCount() {
 void GameEngine::ShowMessage(const char* title, const char* message, SDL_MessageBoxFlags type) {
 #if defined(__SWITCH__)
     SPDLOG_ERROR(message);
+#elif defined(__EMSCRIPTEN__)
+    js_set_status(message);
+    SPDLOG_ERROR(message);
 #else
     SDL_ShowSimpleMessageBox(type, title, message, nullptr);
     SPDLOG_ERROR(message);
@@ -320,6 +343,8 @@ int GameEngine::ShowYesNoBox(const char* title, const char* box) {
     int ret;
 #ifdef _WIN32
     ret = MessageBoxA(nullptr, box, title, MB_YESNO | MB_ICONQUESTION);
+#elif defined(__EMSCRIPTEN__)
+    ret = WebConfirm(title, box) ? IDYES : IDNO;
 #elif defined(__SWITCH__)
     SPDLOG_ERROR(box);
     return IDYES;
@@ -473,6 +498,9 @@ void GameEngine::ProcessGfxCommands(Gfx* pool) {
 
 // Audio
 void GameEngine::HandleAudioThread() {
+    // Nothing above this thread catches, so an exception escaping it ends the process. On
+    // the web that is a dead page, so report it and stop the thread instead.
+    try {
     while (audio.running) {
         {
             std::unique_lock<std::mutex> Lock(audio.mutex);
@@ -509,6 +537,19 @@ void GameEngine::HandleAudioThread() {
 
         audio.processing = false;
         audio.cv_from_thread.notify_one();
+    }
+    } catch (const std::exception& e) {
+        // Not SPDLOG: logging from a failure path can itself throw, which would turn this
+        // into a terminate.
+        fprintf(stderr, "Spaghetti Kart audio thread stopped: %s\n", e.what());
+        fflush(stderr);
+        audio.running = false;
+        audio.processing = false;
+    } catch (...) {
+        fprintf(stderr, "Spaghetti Kart audio thread stopped: unknown exception\n");
+        fflush(stderr);
+        audio.running = false;
+        audio.processing = false;
     }
 }
 
@@ -571,8 +612,13 @@ void GameEngine::AudioExit() {
     }
     audio.cv_to_thread.notify_all();
 
-    // Wait until the audio thread quit
-    audio.thread.join();
+    // Join whenever the thread is joinable, not only while it is still marked running. The
+    // thread also clears `running` when it stops itself, and audio is a global, so leaving
+    // it joinable means its destructor runs std::thread::~thread at exit, which calls
+    // std::terminate.
+    if (audio.thread.joinable()) {
+        audio.thread.join();
+    }
 }
 
 uint8_t GameEngine::GetBankIdByName(const std::string& name) {

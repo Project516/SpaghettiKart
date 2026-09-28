@@ -38,6 +38,12 @@
 #include <locale.h>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <SDL2/SDL_timer.h>
+#include "port/web/WebUtils.h"
+#endif
+
 extern "C" {
 #include "main.h"
 #include "audio/load.h"
@@ -948,6 +954,12 @@ extern "C"
     // Allow non-ascii characters for Windows
     setlocale(LC_ALL, ".UTF8");
 #endif
+#ifdef __EMSCRIPTEN__
+    // Everything the engine writes lives under /storage, an IndexedDB mount. Both calls
+    // must precede anything that looks for a file there.
+    WebCache_Mount("/storage");
+    WebCache_Load();
+#endif
     // load_wasm();
     GameEngine::Create();
     audio_init();
@@ -977,11 +989,50 @@ extern "C"
 
     thread5_game_loop();
     gEditor.Load();
-    while (WindowIsRunning()) {
-        push_frame();
+    try {
+        while (WindowIsRunning()) {
+#ifdef __EMSCRIPTEN__
+            // The browser only gets to run when this stack unwinds, so yield every frame.
+            // Otherwise input arrives in batches, whenever the cache sync below happens to
+            // fire.
+            emscripten_sleep(0);
+#endif
+            push_frame();
+#ifdef __EMSCRIPTEN__
+            // A tab can close without warning, so sync periodically, not just on exit.
+            static uint32_t lastSync = 0;
+            const uint32_t now = SDL_GetTicks();
+            if (now - lastSync > 5000) {
+                lastSync = now;
+                WebCache_Save();
+            }
+#endif
+        }
+    } catch (const std::exception& e) {
+        // Not SPDLOG: logging from a failure path can itself throw, which would turn this
+        // into a terminate.
+        fprintf(stderr, "Spaghetti Kart game loop threw: %s\n", e.what());
+        fflush(stderr);
+    } catch (...) {
+        fprintf(stderr, "Spaghetti Kart game loop threw: unknown exception\n");
+        fflush(stderr);
     }
-    CustomEngineDestroy();
+
+    try {
+        CustomEngineDestroy();
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Spaghetti Kart shutdown threw: %s\n", e.what());
+        fflush(stderr);
+    } catch (...) {
+        fprintf(stderr, "Spaghetti Kart shutdown threw: unknown exception\n");
+        fflush(stderr);
+    }
     // GameEngine::Instance->ProcessFrame(push_frame);
     GameEngine::Instance->Destroy();
+#ifdef __EMSCRIPTEN__
+    // Destroy() wrote the config after the last periodic sync. Not awaited: the write
+    // finishes in the page after the runtime exits.
+    WebCache_SaveNoWait();
+#endif
     return 0;
 }
