@@ -736,9 +736,6 @@ if(EMSCRIPTEN)
            "${CMAKE_SOURCE_DIR}/src/port/web/coi-serviceworker.js"
            "$<TARGET_FILE_DIR:Spaghettify>/coi-serviceworker.js"
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-           "${CMAKE_SOURCE_DIR}/src/port/web/shell.html"
-           "$<TARGET_FILE_DIR:Spaghettify>/spaghettikart.html"
-   COMMAND ${CMAKE_COMMAND} -E copy_if_different
            "${CMAKE_SOURCE_DIR}/src/port/web/CNAME"
            "$<TARGET_FILE_DIR:Spaghettify>/CNAME"
   )

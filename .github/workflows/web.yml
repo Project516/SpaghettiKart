@@ -69,9 +69,10 @@ jobs:
     - name: Stage site
       run: |
         mkdir -p spaghetti-web
-        cp build-web/Spaghettify.html spaghetti-web/index.html
+        # Emscripten names the generated HTML after the shell file, not after the target.
+        cp build-web/*.html spaghetti-web/index.html
         cp build-web/Spaghettify.js build-web/Spaghettify.wasm build-web/Spaghettify.data spaghetti-web/
-        cp build-web/coi-serviceworker.js spaghetti-web/
+        cp build-web/coi-serviceworker.js build-web/CNAME spaghetti-web/
     - name: Upload build
       uses: actions/upload-artifact@v7
       with:
