@@ -2,7 +2,7 @@ name: Web
 
 on:
   push:
-    branches: ["master"]
+    branches: ["*"]
   pull_request:
   workflow_dispatch:
 
@@ -14,7 +14,7 @@ jobs:
   generate-port-o2r:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: Install dependencies
@@ -23,7 +23,7 @@ jobs:
       run: |
         make -C torch type=release -j3
         torch/cmake-build-release/torch pack assets spaghetti.o2r o2r
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: spaghetti.o2r
         path: spaghetti.o2r
@@ -41,7 +41,7 @@ jobs:
       with:
         submodules: true
     - name: Configure ccache
-      uses: hendrikmuhs/ccache-action@v1.2
+      uses: hendrikmuhs/ccache-action@v1.2.24
       with:
         save: ${{ github.ref_name == github.event.repository.default_branch }}
         key: ${{ runner.os }}-web-ccache-${{ github.ref }}-${{ github.sha }}
@@ -53,12 +53,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y ninja-build
     - name: Setup Emscripten
-      uses: mymindstorm/setup-emsdk@v14
+      uses: mymindstorm/setup-emsdk@v16
       with:
         version: 4.0.12
         actions-cache-folder: emsdk-cache
     - name: Download spaghetti.o2r
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: spaghetti.o2r
         path: build-web
@@ -79,7 +79,7 @@ jobs:
         path: spaghetti-web
     - name: Upload Pages artifact
       if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
-      uses: actions/upload-pages-artifact@v4
+      uses: actions/upload-pages-artifact@v5
       with:
         path: spaghetti-web
 
@@ -96,4 +96,4 @@ jobs:
     steps:
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
