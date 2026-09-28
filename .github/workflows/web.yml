@@ -62,6 +62,10 @@ jobs:
       with:
         name: spaghetti.o2r
         path: build-web
+    - name: Fetch the controller mappings
+      run: |
+        curl -sSfL -o gamecontrollerdb.txt https://raw.githubusercontent.com/mdqinc/SDL_GameControllerDB/master/gamecontrollerdb.txt
+        wc -c gamecontrollerdb.txt
     - name: Build
       run: |
         emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

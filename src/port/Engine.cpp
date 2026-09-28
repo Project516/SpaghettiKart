@@ -303,7 +303,17 @@ bool GameEngine::GenAssetFile() {
     js_set_status(("Extracting " + game.value() + "...").c_str());
 #endif
 
-    return extractor->GenerateOTR();
+    if (!extractor->GenerateOTR()) {
+        return false;
+    }
+
+#ifdef __EMSCRIPTEN__
+    // Extraction takes minutes and the game loop that normally syncs storage has not
+    // started, so write the archive out now rather than lose it to whatever comes next.
+    WebCache_Save();
+#endif
+
+    return true;
 }
 
 uint32_t GameEngine::GetInterpolationFPS() {

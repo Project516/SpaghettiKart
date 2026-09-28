@@ -727,6 +727,8 @@ if(EMSCRIPTEN)
    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/config.yml" "${WEB_PRELOAD_DIR}/config.yml"
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
            "${CMAKE_BINARY_DIR}/spaghetti.o2r" "${WEB_PRELOAD_DIR}/spaghetti.o2r"
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+           "${CMAKE_SOURCE_DIR}/gamecontrollerdb.txt" "${WEB_PRELOAD_DIR}/gamecontrollerdb.txt"
   )
   add_custom_command(
    TARGET ${PROJECT_NAME} POST_BUILD
