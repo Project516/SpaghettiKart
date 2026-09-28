@@ -109,10 +109,22 @@ jobs:
         for i in $(seq 1 30); do curl -sf http://127.0.0.1:8123/index.html > /dev/null && break; sleep 1; done
     - name: Fetch the ROM
       env:
+        GH_TOKEN: ${{ github.token }}
         ROM_URL: ${{ secrets.MK64_ROM_URL }}
+        ROM_REPO: ${{ vars.MK64_ROM_REPO }}
+        ROM_TAG: ${{ vars.MK64_ROM_TAG }}
       run: |
-        echo "url: ${ROM_URL:0:24}..."
-        curl -sS -o "$RUNNER_TEMP/mk64.z64" -w "http_code=%{http_code} size=%{size_download}\n" -L "$ROM_URL"
+        set -euo pipefail
+        rom="$RUNNER_TEMP/mk64.z64"
+        if [ -n "${ROM_URL:-}" ]; then
+          curl -sSfL -o "$rom" "$ROM_URL"
+        elif [ -n "${ROM_REPO:-}" ]; then
+          gh release download "${ROM_TAG:-rom}" --repo "$ROM_REPO" --pattern '*.z64' --dir "$RUNNER_TEMP"
+        else
+          echo "::error::No ROM source configured, the test cannot reach the game menu"
+          exit 1
+        fi
+        echo "sha1=$(sha1sum "$rom" | cut -d" " -f1) size=$(stat -c%s "$rom")"
     - name: Load it in a browser
       env:
         SITE_URL: http://127.0.0.1:8123/index.html
