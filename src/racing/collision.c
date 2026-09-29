@@ -2034,7 +2034,9 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
                 generate_collision_mesh(ResourceGetDataByCrc(hash), surfaceType, sectionId);
                 break;
             case G_DL_OTR_FILEPATH:
-                generate_collision_mesh(ResourceGetDataByName((const char*)hi), surfaceType, sectionId);
+                if (GameEngine_OTRSigCheck((const char*)hi)) {
+                    generate_collision_mesh(ResourceGetDataByName((const char*)hi), surfaceType, sectionId);
+                }
                 break;
             case G_VTX:{
                 uintptr_t ptr = hi;
@@ -2043,6 +2045,12 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
             }
             case G_VTX_OTR_FILEPATH: {
                 const char* filePath = (const char*)hi;
+                // A packed display list stores a vertex offset here, not a path, so only
+                // the OTR signature decides whether the word can be read as a string.
+                if (!GameEngine_OTRSigCheck(filePath)) {
+                    gfx++;
+                    continue;
+                }
                 // Fast64 outputs garbage data. Lets skip that...
                 if (is_cull_box(filePath)) {
                     gfx++;
@@ -2188,6 +2196,12 @@ void find_vtx_and_set_colours(Gfx* displayList, s8 alpha, u8 red, u8 green, u8 b
             set_vertex_colours(hi, (lo >> 10) & 0x3F, ((lo >> 16) & 0xFF) >> 1, alpha, red, green, blue);
         } else if (opcode == (G_VTX_OTR_FILEPATH << 24)) {
             const char* filePath = (const char*)hi;
+            // Same packed display list case as generate_collision_mesh: the word is a
+            // vertex offset unless it carries the OTR signature.
+            if (!GameEngine_OTRSigCheck(filePath)) {
+                gfx++;
+                continue;
+            }
             // Fast64 outputs garbage data. Lets skip that...
             if (is_cull_box(filePath)) {
                 gfx++;
