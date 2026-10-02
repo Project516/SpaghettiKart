@@ -704,6 +704,9 @@ if(EMSCRIPTEN)
     # Asyncify has to instrument. Capping it keeps that bounded.
     -sBINARYEN_EXTRA_PASSES=-ocimfs=1000
     -sASSERTIONS=1
+    # Keep the name section so a trap in the browser points at a function instead of
+    # a bare offset.
+    -g
     -sFORCE_FILESYSTEM=1
     -sEXPORTED_FUNCTIONS=_main,_malloc,_free
     -sEXPORTED_RUNTIME_METHODS=FS,ccall,cwrap,UTF8ToString,stringToUTF8
