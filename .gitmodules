@@ -3,7 +3,8 @@
 	url = https://github.com/jothepro/doxygen-awesome-css.git
 [submodule "torch"]
 	path = torch
-	url = https://github.com/HarbourMasters/Torch
+	url = https://github.com/Project516/Torch.git
+	branch = mk64-wasm
 [submodule "libultraship"]
 	path = libultraship
 	url = https://github.com/Project516/libultraship.git
