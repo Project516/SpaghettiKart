@@ -2017,25 +2017,10 @@ static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId,
         return;
     }
 
-    static u32 traceLeft = 24;
-    if (traceLeft > 0 && numTimes < 4) {
-        traceLeft--;
-        const Gfx* h = (const Gfx*) addr;
-        printf("[collision] depth %u list %p:", depth, (void*) addr);
-        for (int w = 0; w < 8 && h != NULL; w++) {
-            printf(" %08X", h[w].words.w0);
-        }
-        printf("\n");
-    }
-
     if (addr != NULL) {
         for (u32 i = 0; i <= depth; i++) {
             if (path[i] == addr) {
-                const Gfx* head = (const Gfx*) addr;
-                printf("[collision] Skipped a display list that is already being walked at 0x%llX: "
-                       "0x%08X 0x%08X 0x%08X 0x%08X\n",
-                       (unsigned long long)(uintptr_t) addr, head->words.w0, head->words.w1,
-                       head[1].words.w0, head[1].words.w1);
+                printf("[collision] Skipped a display list that is already being walked\n");
                 return;
             }
         }
@@ -2066,17 +2051,7 @@ static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId,
             case G_DL_OTR_HASH:
                 gfx++;
                 hash = gfx->words.w0 << 32 | gfx->words.w1;
-                {
-                    const char* childName = ResourceGetNameByCrc(hash);
-                    void* child = ResourceGetDataByCrc(hash);
-                    static u32 childTrace = 24;
-                    if (childTrace > 0 && numTimes < 4) {
-                        childTrace--;
-                        printf("[collision] child hash %016llX name %s data %p\n", (unsigned long long) hash,
-                               childName != NULL ? childName : "(unknown)", child);
-                    }
-                    generate_collision_mesh_at((Gfx*) child, surfaceType, sectionId, depth + 1, path);
-                }
+                generate_collision_mesh_at(ResourceGetDataByCrc(hash), surfaceType, sectionId, depth + 1, path);
                 break;
             case G_DL_OTR_FILEPATH:
                 if (GameEngine_OTRSigCheck((const char*)hi)) {
