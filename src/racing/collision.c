@@ -1983,31 +1983,54 @@ void generate_collision_grid(void) {
     }
 }
 
+#define COLLISION_MAX_DEPTH 64
+
+static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId, u32 depth, Gfx** path);
+
 /**
  * Recursive search for vtx and set surfaceTypes to -1 and sectionId's to 0xFF
  */
 void generate_collision_mesh_with_defaults(Gfx* gfx) {
-    generate_collision_mesh(gfx, SURFACE_DEFAULT, 0xFF);
+    Gfx* path[COLLISION_MAX_DEPTH] = { 0 };
+    generate_collision_mesh_at(gfx, SURFACE_DEFAULT, 0xFF, 0, path);
 }
 
 /**
  * Recursive search for vtx and set sectionId's to 0xFF
  */
 void generate_collision_mesh_with_default_section_id(Gfx* gfx, s8 surfaceType) {
-    generate_collision_mesh(gfx, surfaceType, 0xFF);
+    Gfx* path[COLLISION_MAX_DEPTH] = { 0 };
+    generate_collision_mesh_at(gfx, surfaceType, 0xFF, 0, path);
 }
 
 extern u32 D_8015F58C;
 u32 numTimes = 0;
 
-/**
- * Generate via a recursive search and set for vertex data.
- */
 bool is_cull_box(const char* filePath);
-void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
+static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId, u32 depth, Gfx** path) {
     if (GameEngine_OTRSigCheck((char*)addr)) {
         addr = LOAD_ASSET(addr);
     }
+
+    if (depth >= COLLISION_MAX_DEPTH) {
+        printf("[collision] Display list nesting is deeper than %d, stopped walking\n", COLLISION_MAX_DEPTH);
+        return;
+    }
+
+    if (addr != NULL) {
+        for (u32 i = 0; i <= depth; i++) {
+            if (path[i] == addr) {
+                const Gfx* head = (const Gfx*) addr;
+                printf("[collision] Skipped a display list that is already being walked at 0x%llX: "
+                       "0x%08X 0x%08X 0x%08X 0x%08X\n",
+                       (unsigned long long)(uintptr_t) addr, head->words.w0, head->words.w1,
+                       head[1].words.w0, head[1].words.w1);
+                return;
+            }
+        }
+        path[depth] = addr;
+    }
+
     bool run = true;
     int8_t opcode;
     uintptr_t lo;
@@ -2026,16 +2049,17 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
         switch(opcode) {
             case G_DL:
                 // G_DL's hi contains an addr to another DL.
-                generate_collision_mesh((Gfx*) hi, surfaceType, sectionId);
+                generate_collision_mesh_at((Gfx*) hi, surfaceType, sectionId, depth + 1, path);
                 break;
             case G_DL_OTR_HASH:
                 gfx++;
                 uint64_t hash = gfx->words.w0 << 32 | gfx->words.w1;
-                generate_collision_mesh(ResourceGetDataByCrc(hash), surfaceType, sectionId);
+                generate_collision_mesh_at(ResourceGetDataByCrc(hash), surfaceType, sectionId, depth + 1, path);
                 break;
             case G_DL_OTR_FILEPATH:
                 if (GameEngine_OTRSigCheck((const char*)hi)) {
-                    generate_collision_mesh(ResourceGetDataByName((const char*)hi), surfaceType, sectionId);
+                    generate_collision_mesh_at(ResourceGetDataByName((const char*)hi), surfaceType, sectionId, depth + 1,
+                                               path);
                 }
                 break;
             case G_VTX:{
@@ -2108,6 +2132,11 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
         }
         gfx++;
     }
+}
+
+void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
+    Gfx* path[COLLISION_MAX_DEPTH] = { 0 };
+    generate_collision_mesh_at(addr, surfaceType, sectionId, 0, path);
 }
 
 bool is_cull_box(const char* filePath) {
