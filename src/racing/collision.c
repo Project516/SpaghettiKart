@@ -2008,8 +2008,16 @@ u32 numTimes = 0;
 
 bool is_cull_box(const char* filePath);
 static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId, u32 depth, Gfx** path) {
+    // A child that no longer resolves has nothing to walk, and reading it would fault.
+    if (addr == NULL) {
+        return;
+    }
+
     if (GameEngine_OTRSigCheck((char*)addr)) {
         addr = LOAD_ASSET(addr);
+        if (addr == NULL) {
+            return;
+        }
     }
 
     if (depth >= COLLISION_MAX_DEPTH) {
@@ -2045,8 +2053,11 @@ static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId,
 
         switch(opcode) {
             case G_DL:
-                // G_DL's hi contains an addr to another DL.
-                generate_collision_mesh_at((Gfx*) hi, surfaceType, sectionId, depth + 1, path);
+                // G_DL's hi contains an addr to another DL. Nothing is mapped at a rom
+                // segment address any more, so only follow it when it resolves to a list.
+                if (ResourceGetNameByCrc((uint64_t) hi) != NULL) {
+                    generate_collision_mesh_at((Gfx*) hi, surfaceType, sectionId, depth + 1, path);
+                }
                 break;
             case G_DL_OTR_HASH:
                 gfx++;
