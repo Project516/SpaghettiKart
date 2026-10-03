@@ -2017,6 +2017,14 @@ static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId,
         return;
     }
 
+    static u32 traceLeft = 96;
+    if (traceLeft > 0 && numTimes < 4) {
+        traceLeft--;
+        printf("[collision] depth %u list %p op %02X w1 %08X %08X\n", depth, (void*) addr,
+               addr != NULL ? (uint32_t) (((Gfx*) addr)->words.w0 >> 24) : 0u,
+               addr != NULL ? ((Gfx*) addr)->words.w0 : 0u, addr != NULL ? ((Gfx*) addr)->words.w1 : 0u);
+    }
+
     if (addr != NULL) {
         for (u32 i = 0; i <= depth; i++) {
             if (path[i] == addr) {
