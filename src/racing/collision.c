@@ -2046,6 +2046,7 @@ static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId,
     int8_t opcode;
     uintptr_t lo;
     uintptr_t hi;
+    uint64_t hash;
     numTimes++;
 
     Gfx* gfx = (Gfx*) addr;
@@ -2062,19 +2063,21 @@ static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId,
                 // G_DL's hi contains an addr to another DL.
                 generate_collision_mesh_at((Gfx*) hi, surfaceType, sectionId, depth + 1, path);
                 break;
-            case G_DL_OTR_HASH: {
+            case G_DL_OTR_HASH:
                 gfx++;
-                uint64_t hash = gfx->words.w0 << 32 | gfx->words.w1;
-                const char* childName = ResourceGetNameByCrc(hash);
-                void* child = ResourceGetDataByCrc(hash);
-                static u32 childTrace = 24;
-                if (childTrace > 0 && numTimes < 4) {
-                    childTrace--;
-                    printf("[collision] child hash %016llX name %s data %p\n",
-                           (unsigned long long) hash, childName != nullptr ? childName : "(unknown)", child);
+                hash = gfx->words.w0 << 32 | gfx->words.w1;
+                {
+                    const char* childName = ResourceGetNameByCrc(hash);
+                    void* child = ResourceGetDataByCrc(hash);
+                    static u32 childTrace = 24;
+                    if (childTrace > 0 && numTimes < 4) {
+                        childTrace--;
+                        printf("[collision] child hash %016llX name %s data %p\n", (unsigned long long) hash,
+                               childName != NULL ? childName : "(unknown)", child);
+                    }
+                    generate_collision_mesh_at((Gfx*) child, surfaceType, sectionId, depth + 1, path);
                 }
-                generate_collision_mesh_at((Gfx*) child, surfaceType, sectionId, depth + 1, path);
-            } break;
+                break;
             case G_DL_OTR_FILEPATH:
                 if (GameEngine_OTRSigCheck((const char*)hi)) {
                     generate_collision_mesh_at(ResourceGetDataByName((const char*)hi), surfaceType, sectionId, depth + 1,
