@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <vector>
 #include <cstdint>
+#include <atomic>
 
 class GameExtractor {
 public:
@@ -11,7 +12,7 @@ public:
     std::optional<std::string> ValidateChecksum() const;
     bool SelectGameFromUI();
     void GetRoms(std::vector<std::string>& roms);
-    bool GenerateOTR() const;
+    bool GenerateOTR(std::atomic<size_t>* progress = nullptr) const;
 private:
     fs::path mGamePath;
     std::vector<uint8_t> mGameData;

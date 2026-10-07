@@ -46,6 +46,9 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <pthread.h>
+#include <atomic>
+#include <filesystem>
 #include "port/web/WebUtils.h"
 
 // clang-format off
@@ -283,6 +286,59 @@ GameEngine::GameEngine() {
     ImGui::GetIO().FontDefault = fontMono;
 }
 
+#ifdef __EMSCRIPTEN__
+static size_t CountAssetYamls() {
+    std::error_code ec;
+    size_t count = 0;
+    const auto dir = std::filesystem::path(Ship::Context::GetAppBundlePath()) / "yamls";
+    for (std::filesystem::recursive_directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        if (it->path().extension() == ".yml" && it->path().filename() != "config.yml") {
+            count++;
+        }
+    }
+    return count;
+}
+
+// On the main thread, extraction would freeze the tab for minutes. A worker runs it instead,
+// and this thread keeps yielding, which also serves the worker's proxied file I/O.
+static bool GenerateOTRInBackground(GameExtractor* extractor) {
+    struct Job {
+        GameExtractor* extractor;
+        std::atomic<size_t> progress{ 0 };
+        std::atomic<bool> done{ false };
+        bool ok = false;
+    } job;
+    job.extractor = extractor;
+
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    // Torch recurses through nested display lists.
+    pthread_attr_setstacksize(&attr, 8 * 1024 * 1024);
+    pthread_t thread;
+    const int err = pthread_create(
+        &thread, &attr,
+        [](void* arg) -> void* {
+            auto* job = static_cast<Job*>(arg);
+            job->ok = job->extractor->GenerateOTR(&job->progress);
+            job->done = true;
+            return nullptr;
+        },
+        &job);
+    pthread_attr_destroy(&attr);
+    if (err != 0) {
+        return extractor->GenerateOTR();
+    }
+
+    const size_t total = CountAssetYamls();
+    while (!job.done) {
+        WebSetProgress(job.progress, total);
+        emscripten_sleep(100);
+    }
+    pthread_join(thread, nullptr);
+    return job.ok;
+}
+#endif
+
 bool GameEngine::GenAssetFile() {
     auto extractor = new GameExtractor();
 
@@ -305,11 +361,14 @@ bool GameEngine::GenAssetFile() {
 
 #ifdef __EMSCRIPTEN__
     WebShowLoading(("Extracting " + game.value() + "...").c_str());
-#endif
-
+    if (!GenerateOTRInBackground(extractor)) {
+        return false;
+    }
+#else
     if (!extractor->GenerateOTR()) {
         return false;
     }
+#endif
 
 #ifdef __EMSCRIPTEN__
     WebShowGame();

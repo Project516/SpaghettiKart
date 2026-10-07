@@ -196,6 +196,12 @@ void WebShowLoading(const char* status) {
     emscripten_sleep(0);
 }
 
+void WebSetProgress(size_t done, size_t total) {
+    // clang-format off
+    EM_ASM({ if (Module.setExtractProgress) Module.setExtractProgress($0, $1); }, done, total);
+    // clang-format on
+}
+
 void WebShowGame() {
     // clang-format off
     EM_ASM({ if (Module.showGame) Module.showGame(); });

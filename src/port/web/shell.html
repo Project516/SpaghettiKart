@@ -200,14 +200,19 @@
 
       // The game blocks the page while it extracts the ROM, so the canvas would sit black.
       showLoading: function(text) {
+        Module.loadingText = text;
         el('spinner').style.display = '';
-        el('progress-wrap').style.display = 'none';
+        setProgress(0);
         el('status').classList.remove('error');
         el('status').textContent = text;
         showOnly('loading-screen');
       },
+      setExtractProgress: function(done, total) {
+        if (!total) return;
+        setProgress(done / total);
+        el('status').textContent = Module.loadingText + ' ' + Math.floor(100 * done / total) + '%';
+      },
       showGame: function() {
-        el('progress-wrap').style.display = '';
         showOnly('canvas-container');
         Module.canvas.focus();
       },

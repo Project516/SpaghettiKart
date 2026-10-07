@@ -20,5 +20,6 @@ void WebAlert(const char* title, const char* text);
 // Swaps the canvas for the loading screen while the game blocks the page, and back.
 void WebShowLoading(const char* status);
 void WebShowGame();
+void WebSetProgress(size_t done, size_t total);
 
 #endif // __EMSCRIPTEN__
