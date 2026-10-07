@@ -109,7 +109,8 @@
       text-align: center;
       max-width: 90vw;
     }
-    .sk-prompt-panel p { margin: 0 0 16px 0; font-size: 1rem; }
+    .sk-prompt-panel h2 { margin: 0 0 12px 0; font-size: 1.1rem; }
+    .sk-prompt-panel p { margin: 0 0 16px 0; font-size: 1rem; white-space: pre-line; }
     .sk-prompt-panel button { margin: 0 6px; }
     .sk-prompt-panel button:last-of-type { background: var(--frame); }
   </style>
@@ -196,6 +197,20 @@
           removeRunDependency('user-start');
         }, { once: true });
       }],
+
+      // The game blocks the page while it extracts the ROM, so the canvas would sit black.
+      showLoading: function(text) {
+        el('spinner').style.display = '';
+        el('progress-wrap').style.display = 'none';
+        el('status').classList.remove('error');
+        el('status').textContent = text;
+        showOnly('loading-screen');
+      },
+      showGame: function() {
+        el('progress-wrap').style.display = '';
+        showOnly('canvas-container');
+        Module.canvas.focus();
+      },
 
       // A tab cannot close itself, so replace the frozen canvas with a message.
       showExitScreen: function(message) {

@@ -40,6 +40,12 @@ async function main() {
     throw new Error('the page is not cross-origin isolated, the pthreads build cannot run');
   }
 
+  // A fresh browser has no extracted archive, so the game offers to make one.
+  const yes = page.locator('.sk-prompt-panel button', { hasText: 'Yes' });
+  await yes.waitFor({ state: 'visible', timeout: 300000 });
+  say('the game offers to extract a ROM');
+  await yes.click();
+
   // The game asks for the player's own ROM before it extracts anything.
   await page.waitForSelector('input[type=file]', { state: 'attached', timeout: 300000 });
   say('the game is asking for a ROM');

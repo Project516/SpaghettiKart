@@ -15,5 +15,10 @@ void WebCache_SaveNoWait();
 int WebFilePicker_PickInto(const char* title, const char* accept, int maxBytes, const char* destPath);
 
 int WebConfirm(const char* title, const char* text);
+void WebAlert(const char* title, const char* text);
+
+// Swaps the canvas for the loading screen while the game blocks the page, and back.
+void WebShowLoading(const char* status);
+void WebShowGame();
 
 #endif // __EMSCRIPTEN__

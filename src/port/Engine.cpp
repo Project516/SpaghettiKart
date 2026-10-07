@@ -304,10 +304,7 @@ bool GameEngine::GenAssetFile() {
                 "The extraction process will now begin.\n\nThis may take a few minutes.", SDL_MESSAGEBOX_INFORMATION);
 
 #ifdef __EMSCRIPTEN__
-    // The browser only repaints when this stack unwinds, and the message boxes the other
-    // platforms get are no-ops here, so drive the shell's status line by hand.
-    emscripten_sleep(0);
-    js_set_status(("Extracting " + game.value() + "...").c_str());
+    WebShowLoading(("Extracting " + game.value() + "...").c_str());
 #endif
 
     if (!extractor->GenerateOTR()) {
@@ -315,6 +312,7 @@ bool GameEngine::GenAssetFile() {
     }
 
 #ifdef __EMSCRIPTEN__
+    WebShowGame();
     // Extraction takes minutes and the game loop that normally syncs storage has not
     // started, so write the archive out now rather than lose it to whatever comes next.
     WebCache_Save();
@@ -348,7 +346,11 @@ void GameEngine::ShowMessage(const char* title, const char* message, SDL_Message
 #if defined(__SWITCH__)
     SPDLOG_ERROR(message);
 #elif defined(__EMSCRIPTEN__)
-    js_set_status(message);
+    if (type == SDL_MESSAGEBOX_INFORMATION) {
+        js_set_status(message);
+    } else {
+        WebAlert(title, message);
+    }
     SPDLOG_ERROR(message);
 #else
     SDL_ShowSimpleMessageBox(type, title, message, nullptr);

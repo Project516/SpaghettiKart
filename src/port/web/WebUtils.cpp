@@ -27,9 +27,47 @@ EM_ASYNC_JS(int, js_idbfs_sync, (int populate), {
     });
 });
 
-EM_JS(void, js_alert, (const char* ctext), {
-    alert(UTF8ToString(ctext));
+// An in-page message box, since the browser's alert() and confirm() block the whole tab.
+// Leave noLabel empty for a single button. Returns 1 for the first button.
+EM_ASYNC_JS(int, js_prompt, (const char* ctitle, const char* ctext, const char* cyes, const char* cno), {
+    var title = UTF8ToString(ctitle);
+    var text = UTF8ToString(ctext);
+    var yesLabel = UTF8ToString(cyes);
+    var noLabel = UTF8ToString(cno);
+    return await new Promise(function(resolve) {
+        var overlay = document.createElement('div');
+        overlay.className = 'sk-prompt';
+        var panel = document.createElement('div');
+        panel.className = 'sk-prompt-panel';
+        if (title) {
+            var heading = document.createElement('h2');
+            heading.textContent = title;
+            panel.appendChild(heading);
+        }
+        var body = document.createElement('p');
+        body.textContent = text;
+        panel.appendChild(body);
+        function addButton(label, result) {
+            var button = document.createElement('button');
+            button.textContent = label;
+            button.addEventListener('click', function() {
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                resolve(result);
+            });
+            panel.appendChild(button);
+            return button;
+        }
+        var yes = addButton(yesLabel, 1);
+        if (noLabel) addButton(noLabel, 0);
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+        yes.focus();
+    });
 });
+
+static void js_alert(const char* text) {
+    js_prompt("", text, "OK", "");
+}
 
 EM_JS(void, js_idbfs_sync_nowait, (), {
     FS.syncfs(false, function(err) {
@@ -143,8 +181,24 @@ void WebCache_SaveNoWait(void) {
 }
 
 int WebConfirm(const char* title, const char* text) {
+    return js_prompt(title, text, "Yes", "No");
+}
+
+void WebAlert(const char* title, const char* text) {
+    js_prompt(title, text, "OK", "");
+}
+
+void WebShowLoading(const char* status) {
     // clang-format off
-    return EM_ASM_INT({ return confirm(UTF8ToString($0) + "\n\n" + UTF8ToString($1)) ? 1 : 0; }, title, text);
+    EM_ASM({ if (Module.showLoading) Module.showLoading(UTF8ToString($0)); }, status);
+    // clang-format on
+    // Let the page paint before the caller blocks it.
+    emscripten_sleep(0);
+}
+
+void WebShowGame() {
+    // clang-format off
+    EM_ASM({ if (Module.showGame) Module.showGame(); });
     // clang-format on
 }
 
