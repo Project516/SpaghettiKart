@@ -1,0 +1,142 @@
+name: Web
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-port-o2r:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: Install dependencies
+      run: sudo apt-get install gcc g++ git cmake ninja-build lsb-release
+    - name: Generate spaghetti.o2r
+      run: |
+        make -C torch type=release -j3
+        torch/cmake-build-release/torch pack assets spaghetti.o2r o2r
+    - uses: actions/upload-artifact@v7
+      with:
+        name: spaghetti.o2r
+        path: spaghetti.o2r
+        retention-days: 1
+
+  build-web:
+    needs: generate-port-o2r
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+    - name: Git Checkout
+      uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: Configure ccache
+      uses: hendrikmuhs/ccache-action@v1.2.24
+      with:
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
+        key: ${{ runner.os }}-web-ccache-${{ github.ref }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-web-ccache-${{ github.ref }}
+          ${{ runner.os }}-web-ccache
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v16
+      with:
+        version: 4.0.12
+        actions-cache-folder: emsdk-cache
+    - name: Download spaghetti.o2r
+      uses: actions/download-artifact@v8
+      with:
+        name: spaghetti.o2r
+        path: build-web
+    - name: Fetch the controller mappings
+      run: |
+        curl -sSfL -o gamecontrollerdb.txt https://raw.githubusercontent.com/mdqinc/SDL_GameControllerDB/master/gamecontrollerdb.txt
+        wc -c gamecontrollerdb.txt
+    - name: Build
+      run: |
+        emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake --build build-web --parallel 4
+    - name: Stage site
+      run: |
+        mkdir -p spaghetti-web
+        # The shell carries the loading screen and the audio gate, and hands the module
+        # a canvas, so only the script tag is filled in here.
+        sed 's|{{{ SCRIPT }}}|<script async src="Spaghettify.js"></script>|' build-web/spaghettikart.html > spaghetti-web/index.html
+        cp build-web/Spaghettify.js build-web/Spaghettify.wasm build-web/Spaghettify.data spaghetti-web/
+        cp build-web/coi-serviceworker.js build-web/CNAME spaghetti-web/
+        ls -la spaghetti-web
+    - name: Upload build
+      uses: actions/upload-artifact@v7
+      with:
+        name: spaghetti-web
+        path: spaghetti-web
+    - name: Upload Pages artifact
+      if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+      uses: actions/upload-pages-artifact@v5
+      with:
+        path: spaghetti-web
+
+  test-web:
+    needs: build-web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v6
+    - name: Download the site
+      uses: actions/download-artifact@v8
+      with:
+        name: spaghetti-web
+        path: site
+    - name: Install a browser
+      run: |
+        npm install --no-save playwright@1.56.1
+        npx playwright install --with-deps chromium
+    - name: Serve the site
+      run: |
+        python3 script/serve-web.py 8123 "$PWD/site" &
+        for i in $(seq 1 30); do curl -sf http://127.0.0.1:8123/index.html > /dev/null && break; sleep 1; done
+    - name: Load it in a browser
+      env:
+        SITE_URL: http://127.0.0.1:8123/index.html
+        SHOT_DIR: ${{ runner.temp }}/shots
+      run: |
+        mkdir -p "$SHOT_DIR"
+        node script/web-smoke-test.js
+    - name: Upload the screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: spaghetti-web-shots
+        path: ${{ runner.temp }}/shots
+        retention-days: 7
+
+  deploy-web:
+    needs: [build-web]
+    if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v5

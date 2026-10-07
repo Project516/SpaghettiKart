@@ -40,6 +40,11 @@ endif()
 # Toggle for GLES (Required for many ARM/Mobile platforms)
 option(USE_OPENGLES "Use OpenGLES instead of Desktop OpenGL" OFF)
 
+# Browser build, configured with emcmake.
+if(EMSCRIPTEN)
+  include(cmake/web.cmake)
+endif()
+
 # Set game compilation version
 set(VERSION us)
 set(SKIP_XCODE_VERSION_CHECK ON)
@@ -160,6 +165,10 @@ include(cmake/dependencies/common.cmake)
 
 include(cmake/dependencies/FindLib.cmake)
 
+if(EMSCRIPTEN)
+  include(cmake/web-target.cmake)
+endif()
+
 # fmt's consteval format-string checking fails to compile under newer
 # AppleClang (Xcode 16+) with the spdlog/fmt versions in use (both vcpkg's on
 # CI and Torch's bundled copy — see cmake/TorchExternalFixes.cmake for the
@@ -207,7 +216,7 @@ endif()
 # On macOS these live in the .app's Contents/Resources instead (see
 # cmake/macos/apple_bundle.cmake); copying them next to the executable would
 # just duplicate them inside Contents/MacOS.
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin" AND NOT EMSCRIPTEN)
 add_custom_command(
   TARGET ${PROJECT_NAME}
   POST_BUILD
@@ -219,7 +228,9 @@ add_custom_command(
   VERBATIM)
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+# On the web the ROM is extracted in the tab, and CI builds spaghetti.o2r with a
+# native torch.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch" AND NOT EMSCRIPTEN)
   include(ExternalProject)
   # Torch's pinned spdlog bundles an fmt that trips a consteval error under
   # newer AppleClang (Xcode 16+): "call to consteval function

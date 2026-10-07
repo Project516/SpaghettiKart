@@ -7,6 +7,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
   set(ADDITIONAL_LIBRARY_DEPENDENCIES "$<$<CONFIG:Debug>:-Wl,--wrap=abort>")
   target_include_directories(${PROJECT_NAME} PRIVATE
                              ${DEVKITPRO}/portlibs/wiiu/include/)
+elseif(EMSCRIPTEN)
+  # cmake/web.cmake builds ogg and vorbis from source.
 else()
   find_package(Ogg REQUIRED)
   find_package(Vorbis REQUIRED)
@@ -17,7 +19,7 @@ if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
                                       Vorbis::vorbisenc Vorbis::vorbisfile)
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
   if(USE_OPENGLES)
     find_library(GLESv2_LIBRARY GLESv2 REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${GLESv2_LIBRARY})

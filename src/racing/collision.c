@@ -1995,35 +1995,68 @@ void generate_collision_grid(void) {
     }
 }
 
+#define COLLISION_MAX_DEPTH 64
+
+static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId, u32 depth, Gfx** path);
+
 /**
  * Recursive search for vtx and set surfaceTypes to -1 and sectionId's to 0xFF
  */
 void generate_collision_mesh_with_defaults(Gfx* gfx) {
-    generate_collision_mesh(gfx, SURFACE_DEFAULT, 0xFF);
+    Gfx* path[COLLISION_MAX_DEPTH] = { 0 };
+    generate_collision_mesh_at(gfx, SURFACE_DEFAULT, 0xFF, 0, path);
 }
 
 /**
  * Recursive search for vtx and set sectionId's to 0xFF
  */
 void generate_collision_mesh_with_default_section_id(Gfx* gfx, s8 surfaceType) {
-    generate_collision_mesh(gfx, surfaceType, 0xFF);
+    Gfx* path[COLLISION_MAX_DEPTH] = { 0 };
+    generate_collision_mesh_at(gfx, surfaceType, 0xFF, 0, path);
 }
 
 extern u32 D_8015F58C;
 u32 numTimes = 0;
 
-/**
- * Generate via a recursive search and set for vertex data.
- */
 bool is_cull_box(const char* filePath);
-void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
+
+// A packed display list can leave a vertex offset where a path pointer belongs.
+// Same cutoff libultraship's interpreter uses for these opcodes.
+static bool is_small_offset(uintptr_t word) {
+    return word < 0x10000;
+}
+
+static void generate_collision_mesh_at(Gfx* addr, s8 surfaceType, u16 sectionId, u32 depth, Gfx** path) {
+    // A child that no longer resolves has nothing to walk, and reading it would fault.
+    if (addr == NULL) {
+        return;
+    }
+
     if (GameEngine_OTRSigCheck((char*)addr)) {
         addr = LOAD_ASSET(addr);
+        if (addr == NULL) {
+            return;
+        }
     }
+
+    if (depth >= COLLISION_MAX_DEPTH) {
+        printf("[collision] Display list nesting is deeper than %d, stopped walking\n", COLLISION_MAX_DEPTH);
+        return;
+    }
+
+    for (u32 i = 0; i < depth; i++) {
+        if (path[i] == addr) {
+            printf("[collision] Skipped a display list that is already being walked\n");
+            return;
+        }
+    }
+    path[depth] = addr;
+
     bool run = true;
     int8_t opcode;
     uintptr_t lo;
     uintptr_t hi;
+    uint64_t hash;
     numTimes++;
 
     Gfx* gfx = (Gfx*) addr;
@@ -2038,15 +2071,18 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
         switch(opcode) {
             case G_DL:
                 // G_DL's hi contains an addr to another DL.
-                generate_collision_mesh((Gfx*) hi, surfaceType, sectionId);
+                generate_collision_mesh_at((Gfx*) hi, surfaceType, sectionId, depth + 1, path);
                 break;
             case G_DL_OTR_HASH:
                 gfx++;
-                uint64_t hash = ((uint64_t)gfx->words.w0) << 32 | gfx->words.w1;
-                generate_collision_mesh(ResourceGetDataByCrc(hash), surfaceType, sectionId);
+                hash = ((uint64_t)gfx->words.w0) << 32 | gfx->words.w1;
+                generate_collision_mesh_at(ResourceGetDataByCrc(hash), surfaceType, sectionId, depth + 1, path);
                 break;
             case G_DL_OTR_FILEPATH:
-                generate_collision_mesh(ResourceGetDataByName((const char*)hi), surfaceType, sectionId);
+                if (!is_small_offset(hi)) {
+                    generate_collision_mesh_at(ResourceGetDataByName((const char*)hi), surfaceType, sectionId, depth + 1,
+                                               path);
+                }
                 break;
             case G_VTX:{
                 uintptr_t ptr = hi;
@@ -2055,6 +2091,10 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
             }
             case G_VTX_OTR_FILEPATH: {
                 const char* filePath = (const char*)hi;
+                if (is_small_offset(hi)) {
+                    gfx++;
+                    continue;
+                }
                 // Fast64 outputs garbage data. Lets skip that...
                 if (is_cull_box(filePath)) {
                     gfx++;
@@ -2112,6 +2152,11 @@ void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
         }
         gfx++;
     }
+}
+
+void generate_collision_mesh(Gfx* addr, s8 surfaceType, u16 sectionId) {
+    Gfx* path[COLLISION_MAX_DEPTH] = { 0 };
+    generate_collision_mesh_at(addr, surfaceType, sectionId, 0, path);
 }
 
 bool is_cull_box(const char* filePath) {
@@ -2200,6 +2245,10 @@ void find_vtx_and_set_colours(Gfx* displayList, s8 alpha, u8 red, u8 green, u8 b
             set_vertex_colours(hi, (lo >> 10) & 0x3F, ((lo >> 16) & 0xFF) >> 1, alpha, red, green, blue);
         } else if (opcode == (G_VTX_OTR_FILEPATH << 24)) {
             const char* filePath = (const char*)hi;
+            if (is_small_offset(hi)) {
+                gfx++;
+                continue;
+            }
             // Fast64 outputs garbage data. Lets skip that...
             if (is_cull_box(filePath)) {
                 gfx++;

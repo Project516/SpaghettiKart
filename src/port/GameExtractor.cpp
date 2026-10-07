@@ -22,8 +22,12 @@
 #include <unistd.h>
 #endif
 
-#if !defined(__IOS__) && !defined(__ANDROID__) && !defined(__SWITCH__)
+#if !defined(__IOS__) && !defined(__ANDROID__) && !defined(__SWITCH__) && !defined(__EMSCRIPTEN__)
 #include "portable-file-dialogs.h"
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include "port/web/WebUtils.h"
 #endif
 
 std::unordered_map<std::string, std::string> mGameList = {
@@ -71,7 +75,7 @@ bool GameExtractor::SelectGameFromUI() {
         }
     }
 
-#if !defined(__IOS__) && !defined(__ANDROID__) && !defined(__SWITCH__)
+#if !defined(__IOS__) && !defined(__ANDROID__) && !defined(__SWITCH__) && !defined(__EMSCRIPTEN__)
     // Desktop: fallback to file dialogue if no baserom found
     if (!foundGame) {
         if (!pfd::settings::available()) {
@@ -85,6 +89,21 @@ bool GameExtractor::SelectGameFromUI() {
         if (selection.empty()) return false;
 
         romPath = selection[0];
+    }
+#elif defined(__EMSCRIPTEN__)
+    // Browser: the ROM lives in IndexedDB, and the picker is the only way to put one there.
+    const std::string storedPath = Ship::Context::GetPathRelativeToAppDirectory("baserom.us.z64");
+    if (!foundGame) {
+        if (!std::filesystem::exists(storedPath) &&
+            !WebFilePicker_PickInto("Select your Mario Kart 64 ROM", ".z64", 32 * 1024 * 1024, storedPath.c_str())) {
+            SPDLOG_ERROR("No ROM selected");
+            return false;
+        }
+    }
+
+    if (!foundGame) {
+        romPath = storedPath;
+        romData.clear();
     }
 #else
     // Mobile: fallback to baserom.us.z64
@@ -194,7 +213,13 @@ bool GameExtractor::GenerateOTR() const {
 
     try {
         Companion::Instance->Init(ExportType::Binary);
+#ifdef __EMSCRIPTEN__
+        // torch skips the extraction inside Init on the web so a JS caller can drive it.
+        // Nothing here is, so run it now.
+        Companion::Instance->Process();
+#endif
     } catch (const std::exception& e) {
+        SPDLOG_ERROR("Failed to generate the o2r: {}", e.what());
         return false;
     }
 
