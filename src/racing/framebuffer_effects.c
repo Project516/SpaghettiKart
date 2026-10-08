@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 int gfx_create_framebuffer(uint32_t width, uint32_t height, uint32_t native_width, uint32_t native_height,
-                           uint8_t resize);
+                           uint8_t resize, bool forceFixedAspect);
 
 // A framebuffer that should only be used for drawing in the same frame that it is copied too
 // i.e. the VisMono and VisFbuf effects
@@ -19,11 +19,13 @@ s32 gN64ResFrameBuffer = -1;
 
 void FB_CreateFramebuffers(void) {
     if (gReusableFrameBuffer == -1) {
-        gReusableFrameBuffer = gfx_create_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, true);
+        gReusableFrameBuffer =
+            gfx_create_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, true, false);
     }
 
     if (gN64ResFrameBuffer == -1) {
-        gN64ResFrameBuffer = gfx_create_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, false);
+        gN64ResFrameBuffer =
+            gfx_create_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT, false, false);
     }
 }
 
@@ -71,7 +73,7 @@ void FB_CopyToFramebuffer(Gfx** gfxP, s32 fb_src, s32 fb_dest, u8 oncePerFrame, 
 void FB_WriteFramebufferSliceToCPU(Gfx** gfxP, void* buffer, u8 byteSwap) {
     Gfx* gfx = *gfxP;
     FB_CopyToFramebuffer(&gfx, 0, gReusableFrameBuffer, false, NULL);
-    
+
     // Set the N64 resolution framebuffer as the draw target (320x240)
     gsSPSetFB(gfx++, gN64ResFrameBuffer);
     // Reset scissor for new framebuffer
