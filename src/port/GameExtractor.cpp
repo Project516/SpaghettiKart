@@ -222,6 +222,9 @@ bool GameExtractor::GenerateOTR(std::atomic<size_t>* progress) const {
     } catch (const std::exception& e) {
         SPDLOG_ERROR("Failed to generate the o2r: {}", e.what());
         return false;
+    } catch (...) {
+        SPDLOG_ERROR("Failed to generate the o2r: unknown exception");
+        return false;
     }
 
     return true;
