@@ -116,8 +116,8 @@ GameEngine::GameEngine() {
     auto defaultMappings = std::make_shared<Ship::ControllerDefaultMappings>(
         // KeyboardKeyToButtonMappings
         std::unordered_map<CONTROLLERBUTTONS_T, std::unordered_set<Ship::KbScancode>>{
-            { BTN_A, { Ship::KbScancode::LUS_KB_SHIFT} },
-            { BTN_B, { Ship::KbScancode::LUS_KB_CONTROL} },
+            { BTN_A, { Ship::KbScancode::LUS_KB_SHIFT, Ship::KbScancode::LUS_KB_X } },
+            { BTN_B, { Ship::KbScancode::LUS_KB_CONTROL, Ship::KbScancode::LUS_KB_C } },
             { BTN_L, { Ship::KbScancode::LUS_KB_Q} },
             { BTN_R, { Ship::KbScancode::LUS_KB_SPACE} },
             { BTN_Z, { Ship::KbScancode::LUS_KB_Z} },
