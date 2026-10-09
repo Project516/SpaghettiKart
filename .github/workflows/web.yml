@@ -85,7 +85,7 @@ jobs:
         name: spaghetti-web
         path: spaghetti-web
     - name: Upload Pages artifact
-      if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+      if: ${{ github.event_name != 'pull_request' && github.ref_name == (vars.PAGES_BRANCH || github.event.repository.default_branch) }}
       uses: actions/upload-pages-artifact@v5
       with:
         path: spaghetti-web
@@ -128,7 +128,7 @@ jobs:
 
   deploy-web:
     needs: [build-web]
-    if: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
+    if: ${{ github.event_name != 'pull_request' && github.ref_name == (vars.PAGES_BRANCH || github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     permissions:
       pages: write
